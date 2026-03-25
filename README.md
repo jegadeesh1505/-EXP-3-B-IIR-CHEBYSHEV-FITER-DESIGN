@@ -9,7 +9,7 @@
 PC installed with SCILAB. 
 
 ## PROGRAM (LPF): 
-```
+```py
 clear;
 
 // Sampling frequency
@@ -43,7 +43,7 @@ disp(b, "Numerator coefficients (b):");
 disp(a, "Denominator coefficients (a):");
 ```
 ## PROGRAM (HPF): 
-```
+```py
 clear;
 
 // Sampling frequency
