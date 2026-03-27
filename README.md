@@ -1,4 +1,5 @@
 
+
 # EXP 3 : IIR-CHEBYSHEV-FITER-DESIGN
 
 ## AIM: 
@@ -10,79 +11,176 @@ PC installed with SCILAB.
 
 ## PROGRAM (LPF): 
 ```py
+clc;
 clear;
+close;
 
-// Sampling frequency
-Fs = 5000;          // Hz
+// ================== USER INPUT ==================
+wp     = input('Enter the pass band frequency (Radians)= ');
+ws     = input('Enter the stop band frequency (Radians)= ');
+alphap = input('Enter the pass band attenuation (dB)= ');
+alphas = input('Enter the stop band attenuation (dB)= ');
+T      = input('Enter the value of sampling time= ');
 
-// Cutoff frequency
-fc = 1500;          // Hz
+// ================== PRE-WARPING ==================
+omegap = (2/T)*tan(wp/2);
+omegas = (2/T)*tan(ws/2);
 
-// Butterworth LPF order 3 coefficients (Chebyshev Type I, 1 dB ripple)
-// Precomputed numerator (b) and denominator (a)
-b = [0.0929 0.2787 0.2787 0.0929];   // Numerator coefficients
-a = [1.0000 -0.5772 0.4218 -0.0561];  // Denominator coefficients
+// ================== FILTER ORDER ==================
+Epsilon = sqrt((10^(0.1*alphap))-1);
 
-// Frequency response
-Npoints = 512;
-[H, f_norm] = frmag(b, a, Npoints);
+N_calc = acosh(sqrt(((10^(0.1*alphas))-1)/((10^(0.1*alphap))-1))) ...
+         / acosh(omegas/omegap);
 
-// Convert normalized frequency to Hz
-f = f_norm * Fs;
+N = ceil(N_calc);
 
-// Plot magnitude response in dB
-clf();
-plot(f, 20*log10(H + %eps));
-xlabel("Frequency (Hz)");
-ylabel("Magnitude (dB)");
-title("Chebyshev Type I Low Pass Filter (Order 3)");
-xgrid();
+// ================== CUTOFF FREQUENCY ==================
+omegac = omegap / (((10^(0.1*alphap))-1)^(1/(2*N)));
 
-// Display coefficients
-disp(b, "Numerator coefficients (b):");
-disp(a, "Denominator coefficients (a):");
+// ================== ANALOG LOW PASS PROTOTYPE ==================
+[pols, gn] = zpch1(N, Epsilon, omegac);
+hs = syslin('c', gn, real(poly(pols, 's')));
+
+// ================== BILINEAR TRANSFORMATION ==================
+z = poly(0, 'z');
+Hz = horner(hs, (2/T)*((1 - z^-1)/(1 + z^-1)));
+Hz_sys = syslin('d', Hz);
+
+// ================== NEAT CONSOLE OUTPUT ==================
+mprintf("\n====================================================\n");
+mprintf("      CHEBYSHEV TYPE-I DIGITAL LOW PASS FILTER\n");
+mprintf("====================================================\n");
+
+mprintf("\nInput Specifications:\n");
+mprintf("----------------------------------------------------\n");
+mprintf("Passband Frequency (wp)      = %8.4f rad/sample\n", wp);
+mprintf("Stopband Frequency (ws)      = %8.4f rad/sample\n", ws);
+mprintf("Passband Attenuation (Ap)    = %8.2f dB\n", alphap);
+mprintf("Stopband Attenuation (As)    = %8.2f dB\n", alphas);
+mprintf("Sampling Time (T)            = %8.6f sec\n", T);
+
+mprintf("\nPrewarped Analog Frequencies:\n");
+mprintf("----------------------------------------------------\n");
+mprintf("Omega_p                      = %10.4f rad/sec\n", omegap);
+mprintf("Omega_s                      = %10.4f rad/sec\n", omegas);
+
+mprintf("\nFilter Order:\n");
+mprintf("----------------------------------------------------\n");
+mprintf("Calculated Order (N)         = %8.4f\n", N_calc);
+mprintf("Rounded Filter Order         = %d\n", N);
+
+mprintf("\nDesign Parameters:\n");
+mprintf("----------------------------------------------------\n");
+mprintf("Ripple Factor (Epsilon)      = %8.6f\n", Epsilon);
+mprintf("Cutoff Frequency (Omega_c)   = %10.4f rad/sec\n", omegac);
+mprintf("Prototype Gain               = %10.4e\n", gn);
+
+disp("Digital Transfer Function H(z):");
+disp(Hz_sys);
+
+// ================== FREQUENCY RESPONSE ==================
+[HW, w] = frmag(Hz_sys, 512);
+
+figure();
+plot(w/%pi, abs(HW));
+xlabel('Normalized Digital Frequency (w/pi)');
+ylabel('Magnitude');
+title('Frequency Response of Chebyshev Type-I Low Pass Filter');
 ```
+
 ## PROGRAM (HPF): 
 ```py
+clc;
 clear;
+close;
 
-// Sampling frequency
-Fs = 5000;          // Hz
+// ================== USER INPUT ==================
+wp     = input('Enter the pass band frequency (Radians)= ');
+ws     = input('Enter the stop band frequency (Radians)= ');
+alphap = input('Enter the pass band attenuation (dB)= ');
+alphas = input('Enter the stop band attenuation (dB)= ');
+T      = input('Enter the value of sampling time= ');
 
-// Cutoff frequency
-fc = 1500;          // Hz
+// ================== PRE-WARPING ==================
+omegap = (2/T)*tan(wp/2);
+omegas = (2/T)*tan(ws/2);
 
-// Chebyshev HPF order 3 coefficients (Type I, 1 dB ripple)
-// Precomputed numerator (b) and denominator (a)
-b = [0.4218 -0.5772 0.2787 -0.0929];   // Numerator coefficients
-a = [1.0000 -0.5772 0.4218 -0.0561];   // Denominator coefficients
+// ================== FILTER ORDER ==================
+Epsilon = sqrt((10^(0.1*alphap))-1);
 
-// Frequency response
-Npoints = 512;
-[H, f_norm] = frmag(b, a, Npoints);
+N_calc = acosh(sqrt(((10^(0.1*alphas))-1)/((10^(0.1*alphap))-1))) ...
+         / acosh(omegap/omegas);
 
-// Convert normalized frequency to Hz
-f = f_norm * Fs;
+N = ceil(N_calc);
 
-// Plot magnitude response in dB
-clf();
-plot(f, 20*log10(H + %eps));
-xlabel("Frequency (Hz)");
-ylabel("Magnitude (dB)");
-title("Chebyshev Type I High Pass Filter (Order 3)");
-xgrid();
+// ================== CUTOFF FREQUENCY ==================
+omegac = omegap / (((10^(0.1*alphap))-1)^(1/(2*N)));
 
-// Display coefficients
-disp(b, "Numerator coefficients (b):");
-disp(a, "Denominator coefficients (a):");
+// ================== ANALOG LOW PASS PROTOTYPE ==================
+[pols, gn] = zpch1(N, Epsilon, omegac);
+hs = syslin('c', gn, real(poly(pols, 's')));
+
+// ================== LPF → HPF TRANSFORMATION ==================
+s = poly(0, 's');
+hs_hpf = horner(hs, (omegac^2 / s));
+
+// ================== BILINEAR TRANSFORMATION ==================
+z = poly(0, 'z');
+Hz = horner(hs_hpf, (2/T)*((1 - z^-1)/(1 + z^-1)));
+Hz_sys = syslin('d', Hz);
+
+// ================== NEAT CONSOLE OUTPUT ==================
+mprintf("\n====================================================\n");
+mprintf("      CHEBYSHEV TYPE-I DIGITAL HIGH PASS FILTER\n");
+mprintf("====================================================\n");
+
+mprintf("\nInput Specifications:\n");
+mprintf("----------------------------------------------------\n");
+mprintf("Passband Frequency (wp)      = %8.4f rad/sample\n", wp);
+mprintf("Stopband Frequency (ws)      = %8.4f rad/sample\n", ws);
+mprintf("Passband Attenuation (Ap)    = %8.2f dB\n", alphap);
+mprintf("Stopband Attenuation (As)    = %8.2f dB\n", alphas);
+mprintf("Sampling Time (T)            = %8.6f sec\n", T);
+
+mprintf("\nPrewarped Analog Frequencies:\n");
+mprintf("----------------------------------------------------\n");
+mprintf("Omega_p                      = %10.4f rad/sec\n", omegap);
+mprintf("Omega_s                      = %10.4f rad/sec\n", omegas);
+
+mprintf("\nFilter Order:\n");
+mprintf("----------------------------------------------------\n");
+mprintf("Calculated Order (N)         = %8.4f\n", N_calc);
+mprintf("Rounded Filter Order         = %d\n", N);
+
+mprintf("\nDesign Parameters:\n");
+mprintf("----------------------------------------------------\n");
+mprintf("Ripple Factor (Epsilon)      = %8.6f\n", Epsilon);
+mprintf("Cutoff Frequency (Omega_c)   = %10.4f rad/sec\n", omegac);
+mprintf("Prototype Gain               = %10.4e\n", gn);
+
+// Optional display of transfer functions
+disp("Analog High Pass Transfer Function:");
+disp(hs_hpf);
+
+disp("Digital Transfer Function H(z):");
+disp(Hz_sys);
+
+// ================== FREQUENCY RESPONSE ==================
+[HW, w] = frmag(Hz_sys, 512);
+
+figure();
+plot(w/%pi, abs(HW));
+xlabel('Normalized Digital Frequency (w/pi)');
+ylabel('Magnitude');
+title('Frequency Response of Chebyshev Type-I High Pass Filter');
 ```
-## OUTPUT (LPF) : 
-<img width="1912" height="1078" alt="image" src="https://github.com/user-attachments/assets/51c04c7a-53cd-4272-ba48-6c78dc3c9e8f" />
 
+
+## OUTPUT (LPF) : 
+<img width="1915" height="1199" alt="image" src="https://github.com/user-attachments/assets/8fdfed81-098e-4251-bb18-888127690455" />
 
 ## OUTPUT (HPF) : 
-
-<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/884fd6e5-b316-4506-832e-699e8c861c5a" />
+<img width="1919" height="1080" alt="image" src="https://github.com/user-attachments/assets/368f3201-1d86-406a-b0d5-2499a3f318c7" />
 
 ## RESULT: 
-IIR CHEBYSHEV FILTER USING SCILAB IS DESIGNED.
+The design of an IIR Chebyshev filter using SCILAB is sucessfully completed.
